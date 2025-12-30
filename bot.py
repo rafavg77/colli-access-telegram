@@ -234,8 +234,8 @@ class TelegramBot:
             
             logger.info("Bot is running. Press Ctrl+C to stop.")
             
-            # Keep the bot running
-            await asyncio.Event().wait()
+            # Keep the bot running and handle shutdown gracefully
+            await self.application.updater.idle()
             
         except Exception as e:
             logger.error(f"Fatal error running bot: {e}", exc_info=True)

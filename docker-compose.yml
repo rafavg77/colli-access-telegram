@@ -7,8 +7,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    volumes:
-      - ./bot.py:/app/bot.py:ro
     logging:
       driver: "json-file"
       options:
