@@ -1,0 +1,15 @@
+[project]
+name = "colli-access-telegram"
+version = "0.1.0"
+description = "Telegram bot client for ColliCasa access-control backend API"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "python-telegram-bot[job-queue]>=20.0,<21.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
