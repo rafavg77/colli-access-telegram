@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
 import requests
@@ -74,6 +74,9 @@ class ColliCasaAPIClient:
         self.service_token = config.service_token
         self.tenant_id = config.tenant_id
         self.timeout = 10  # seconds
+        # NOTE: Tokens are stored in memory for simplicity. In a production environment
+        # with multiple bot instances, consider using a secure distributed cache (Redis, etc.)
+        # or database for token storage with encryption.
         self.user_tokens: Dict[int, Dict[str, Any]] = {}  # Store user JWT tokens
     
     def _get_headers(self, user_token: Optional[str] = None) -> dict:
@@ -98,7 +101,7 @@ class ColliCasaAPIClient:
         
         return headers
     
-    async def verify_telegram_user(self, telegram_id: str) -> Optional[Dict[str, Any]]:
+    async def verify_telegram_user(self, telegram_id: int) -> Optional[Dict[str, Any]]:
         """
         Verify a Telegram user and get their JWT token.
         
@@ -115,7 +118,7 @@ class ColliCasaAPIClient:
                 lambda: requests.post(
                     f"{self.base_url}/api/v1/auth/verify/telegram",
                     headers=self._get_headers(),
-                    json={"telegram_id": telegram_id},
+                    json={"telegram_id": str(telegram_id)},
                     timeout=self.timeout
                 )
             )
@@ -146,14 +149,18 @@ class ColliCasaAPIClient:
             telegram_id: The Telegram user ID
         
         Returns:
-            JWT token string or None if not found
+            JWT token string or None if not found or expired
         """
         user_data = self.user_tokens.get(telegram_id)
         if user_data:
-            # Check if token is expired
+            # Check if token is expired (using UTC time)
             expires_at = user_data.get('expires_at')
-            if expires_at and datetime.fromisoformat(expires_at) > datetime.now():
+            if expires_at and datetime.fromisoformat(expires_at) > datetime.now(timezone.utc):
                 return user_data.get('token')
+            else:
+                # Token expired, remove it
+                logger.info(f"Token for user {telegram_id} has expired")
+                del self.user_tokens[telegram_id]
         return None
     
     def store_user_token(self, telegram_id: int, token_data: Dict[str, Any]) -> None:
@@ -164,8 +171,9 @@ class ColliCasaAPIClient:
             telegram_id: The Telegram user ID
             token_data: Token data from verification response
         """
-        # Calculate expiration (7 days default)
-        expires_at = datetime.now() + timedelta(days=7)
+        # Use 7 days default expiration (UTC time)
+        # TODO: Extract actual expiration from JWT token if available
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
         
         self.user_tokens[telegram_id] = {
             'token': token_data.get('access_token'),
@@ -173,7 +181,7 @@ class ColliCasaAPIClient:
             'resident_id': token_data.get('resident_id'),
             'permissions': token_data.get('permissions', [])
         }
-        logger.info(f"Stored token for user {telegram_id}")
+        logger.info(f"Stored token for user {telegram_id}, expires at {expires_at}")
     
     async def open_pedestrian_gate(self, telegram_id: int) -> Dict[str, Any]:
         """
@@ -344,8 +352,7 @@ class TelegramBot:
             logger.info(f"User {user.id} ({user.username}) started the bot")
             
             # Try to authenticate the user
-            telegram_id = str(user.id)
-            token_data = await self.api_client.verify_telegram_user(telegram_id)
+            token_data = await self.api_client.verify_telegram_user(user.id)
             
             if token_data and token_data.get('access_token'):
                 self.api_client.store_user_token(user.id, token_data)
