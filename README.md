@@ -6,6 +6,11 @@ Telegram bot client for ColliCasa access-control backend API.
 
 - 🤖 Built with python-telegram-bot v20+ (asyncio)
 - 🔐 Integrates with ColliCasa access-control backend
+- 🔑 Automatic authentication via Telegram ID
+- 🚪 Gate control (pedestrian and visits gates)
+- 📷 Camera snapshot access (pedestrian, visits, and front door cameras)
+- 🛡️ Permission-based access control
+- 🎫 JWT token management with automatic refresh
 - ⚙️ Configuration via environment variables (.env file)
 - 🐳 Docker-ready with Dockerfile and docker-compose.yml
 - 📝 Comprehensive error handling and logging
@@ -95,7 +100,18 @@ TENANT_ID=your_tenant_id_here
 
 ### Available Commands
 
-- `/start` - Display welcome message and basic help
+- `/start` - Display welcome message, authenticate with backend, and show available commands
+- `/open_pedestrian` - Open the pedestrian gate (requires `gate.open.pedestrian` permission)
+- `/open_visits` - Open the visits gate (requires `gate.open.visits` permission)
+- `/snapshot_pedestrian` - Get a snapshot from the pedestrian camera (requires `camera.snapshot.pedestrian` permission)
+- `/snapshot_visits` - Get a snapshot from the visits camera (requires `camera.snapshot.visits` permission)
+- `/snapshot_front_door` - Get a snapshot from the front door camera (requires `camera.snapshot.front_door` permission, admin only)
+
+### Authentication
+
+When you first use the `/start` command, the bot will attempt to authenticate you with the backend API using your Telegram ID. If you are registered in the system, you will receive a JWT token that is valid for 7 days. This token is used to authorize all subsequent commands.
+
+If you are not registered, you will receive a message with your Telegram ID. Contact your administrator to have your account registered in the system.
 
 ## Development
 
